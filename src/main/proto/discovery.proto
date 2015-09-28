@@ -24,6 +24,8 @@ message ServiceRegistration {
     required string groupName = 4;
     optional string description = 5;
     repeated string methodName = 6;
+    optional string language = 7;
+    optional string architecture = 8;
 }
 
 message ServiceRegistrationEvent {
@@ -45,6 +47,8 @@ message ServiceTemplate {
     optional string interface = 2;
     optional string groupName = 3;
     optional string description = 4;
+    optional string language = 5;
+    optional string architecture = 6;
 }
 
 message LookupResult {

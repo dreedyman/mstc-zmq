@@ -104,4 +104,38 @@ public class ServiceRegistrationMatcherTest {
         Assert.assertTrue(matcher.match(template, serviceRegistration));
     }
 
+    @Test
+    public void testArchitectureMatch() {
+        ServiceRegistrationMatcher matcher = new ServiceRegistrationMatcher();
+        ServiceRegistration serviceRegistration = ServiceRegistration.newBuilder()
+                .setName("Grand Poobah")
+                .setGroupName("test")
+                .setEndPoint("tcp://1.1.1.1:1234")
+                .setInterface(ServiceRegistrationMatcher.class.getName())
+                .setArchitecture(System.getProperty("os.arch"))
+                .setLanguage("Java").build();
+
+        ServiceTemplate template = ServiceTemplate.newBuilder()
+                .setGroupName(serviceRegistration.getGroupName())
+                .setArchitecture(serviceRegistration.getArchitecture()).build();
+        Assert.assertTrue(matcher.match(template, serviceRegistration));
+    }
+
+    @Test
+    public void testArchitectureNoMatch() {
+        ServiceRegistrationMatcher matcher = new ServiceRegistrationMatcher();
+        ServiceRegistration serviceRegistration = ServiceRegistration.newBuilder()
+                .setName("Grand Poobah")
+                .setGroupName("test")
+                .setEndPoint("tcp://1.1.1.1:1234")
+                .setInterface(ServiceRegistrationMatcher.class.getName())
+                .setArchitecture(System.getProperty("os.arch"))
+                .setLanguage("Java").build();
+
+        ServiceTemplate template = ServiceTemplate.newBuilder()
+                .setGroupName(serviceRegistration.getGroupName())
+                .setArchitecture("x86").build();
+        Assert.assertFalse(matcher.match(template, serviceRegistration));
+    }
+
 }

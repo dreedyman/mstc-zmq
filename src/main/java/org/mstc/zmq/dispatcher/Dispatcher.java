@@ -92,8 +92,9 @@ public class Dispatcher implements Handler {
                                                .setGroupName(attributes.get("name"))
                                                .setInterface(attributes.get("interface"))
                                                .setDescription(attributes.get("description"))
-                                               .setEndPoint(endPoint).build();
-
+                                               .setEndPoint(endPoint)
+                                               .setArchitecture(System.getProperty("os.arch"))
+                                               .setLanguage("Java").build();
         serviceRegistrationClient.register(registration, System.getProperty("mstc.zmq.lookup"));
 
         beans.add(bean);
