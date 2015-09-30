@@ -15,9 +15,14 @@
  */
 package org.mstc.zmq.dispatcher;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import org.mstc.zmq.Discovery.ServiceRegistration;
 import org.mstc.zmq.Discovery.ServiceTemplate;
+import org.mstc.zmq.Invoke;
 import org.mstc.zmq.Invoke.MethodRequest;
+import org.mstc.zmq.Invoke.MethodResult;
+import org.mstc.zmq.Invoke.Status;
 import org.mstc.zmq.discovery.DiscoveryClient;
 import org.mstc.zmq.lookup.LookupException;
 import org.slf4j.Logger;
@@ -42,13 +47,20 @@ public class Invoker {
         context = new ZContext(1);
     }
 
-    class InvokeRequest {
+    class InvokeRequest<T extends Message> {
         ServiceTemplate template;
         MethodRequest methodRequest;
+        T outputType;
 
         public InvokeRequest(MethodRequest methodRequest, ServiceTemplate template) {
             this.methodRequest = methodRequest;
             this.template = template;
+        }
+
+        public InvokeRequest(MethodRequest methodRequest, ServiceTemplate template, T outputType) {
+            this.methodRequest = methodRequest;
+            this.template = template;
+            this.outputType = outputType;
         }
     }
 
@@ -56,7 +68,13 @@ public class Invoker {
         stack.push(new InvokeRequest(methodRequest, template));
     }
 
-    public byte[] invoke() throws InvokerException {
+    public <T> T invoke(T type) throws InvokerException {
+        MethodResult methodResult = invoke();
+        methodResult.getResult();
+        return null;
+    }
+
+    public MethodResult invoke() throws InvokerException {
         InvokeRequest request = stack.pop();
         if(discoveryClient==null) {
             discoveryClient = new DiscoveryClient(context);
@@ -85,7 +103,21 @@ public class Invoker {
         client = context.createSocket(ZMQ.REQ);
         client.connect(services.get(0).getEndPoint());
         client.send(request.methodRequest.toByteArray());
-        return client.recv();
+        byte[] result = client.recv();
+        MethodResult methodResult;
+        try {
+            methodResult = MethodResult.parseFrom(result);
+        } catch (InvalidProtocolBufferException e) {
+            logger.warn("Could not create MethodResult", e);
+            throw new InvokerException("Could not create MethodResult", e);
+        }
+        Status status = methodResult.getStatus();
+        if(!status.getResult().equals(Invoke.Result.OKAY)) {
+            String message = String.format("[%s] %s", status.getResult(), status.getStatus());
+            logger.error(message);
+            throw new InvokerException(message);
+        }
+        return methodResult;
     }
 
     public void shutdown() {

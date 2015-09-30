@@ -15,6 +15,7 @@
  */
 package org.mstc.zmq.dispatcher;
 
+import org.mstc.zmq.Invoke;
 import org.mstc.zmq.Invoke.MethodResult;
 import org.mstc.zmq.Test.Input;
 import org.mstc.zmq.Test.Output;
@@ -35,11 +36,11 @@ public class Consumer {
 
         for (int requestNum = 0; requestNum < 10; requestNum++) {
             Input input = Input.newBuilder().setInput("Hello").build();
-            byte[] response = service(Producer.class,
-                                      method("go",
-                                             input(
-                                                      Input.class, input))).invoke();
-            MethodResult result = MethodResult.parseFrom(response);
+
+            MethodResult result = service(Producer.class,
+                                          method("go",
+                                                 input(Input.class, input))).invoke();
+
             Output output = Output.parseFrom(result.getResult());
             replies.add(String.format("[%s] Received reply %s", requestNum, output.getOutput()));
         }

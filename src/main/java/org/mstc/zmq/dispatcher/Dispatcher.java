@@ -16,6 +16,8 @@
 package org.mstc.zmq.dispatcher;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
+import com.google.protobuf.MessageLite;
 import org.mstc.zmq.annotations.HandlerNotify;
 import org.mstc.zmq.annotations.Remoteable;
 import org.mstc.zmq.Discovery.ServiceRegistration;
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -40,18 +43,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author Dennis Reedy
  */
 public class Dispatcher implements Handler {
-    private ZContext context;
+    private final ZContext context;
     private ZMQ.Socket socket;
     private String endPoint;
+    private final ReentrantLock lock = new ReentrantLock(true);
     private ServiceRegistrationClient serviceRegistrationClient;
     private final LinkedList<Bean> beans = new LinkedList<>();
-    private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    private final ExecutorService pool = Executors.newCachedThreadPool();
     private static final Logger logger = LoggerFactory.getLogger(Dispatcher.class);
 
     public Dispatcher() {
@@ -78,6 +85,9 @@ public class Dispatcher implements Handler {
             if (m.getAnnotation(Remoteable.class) != null) {
                 bean.methods.add(m);
             }
+            if (m.getAnnotation(PreDestroy.class) != null) {
+                bean.methods.add(m);
+            }
             if (m.getAnnotation(HandlerNotify.class) != null) {
                 try {
                     m.invoke(o, this);
@@ -95,6 +105,7 @@ public class Dispatcher implements Handler {
                                                .setEndPoint(endPoint)
                                                .setArchitecture(System.getProperty("os.arch"))
                                                .setLanguage("Java").build();
+
         serviceRegistrationClient.register(registration, System.getProperty("mstc.zmq.lookup"));
 
         beans.add(bean);
@@ -110,7 +121,7 @@ public class Dispatcher implements Handler {
         }
         if(toRemove!=null) {
             beans.remove(toRemove);
-            logger.info("{} Invoked {} times", toRemove, toRemove.count.get());
+            logger.debug("{} Invoked {} times", toRemove, toRemove.count.get());
         } else {
             logger.warn("Could not find impl in bean collection");
         }
@@ -119,10 +130,32 @@ public class Dispatcher implements Handler {
         }
     }
 
-    public void shutdown() {
-        if (context != null)
-            context.destroy();
-        pool.shutdownNow();
+    public void shutdown()  {
+        if(!pool.isTerminated())
+            pool.submit(new Terminator());
+    }
+
+    class Terminator implements Runnable {
+        @Override
+        public void run() {
+            if(lock.isLocked()) {
+                try {
+                    lock.tryLock(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    logger.warn("Interrupted Terminator", e);
+                }
+            }
+            try {
+                lock.lock();
+                context.destroy();
+                if (!pool.isTerminated()) {
+                    pool.shutdownNow();
+                }
+            } finally {
+                lock.unlock();
+                logger.info("Dispatcher shutdown");
+            }
+        }
     }
 
     class Bean {
@@ -181,22 +214,35 @@ public class Dispatcher implements Handler {
                     }
                 }
                 if (matched != null) {
+                    lock.tryLock();
                     Object result;
                     try {
-                        if (request.getInput() == null) {
+                        if (request.getInput() == null || request.getInput().size()==0) {
                             result = method.invoke(matched.bean);
                         } else {
-                            result = method.invoke(matched.bean, request.getInput().toByteArray());
+                            String inputType = request.getType();
+                            Class<MessageLite> input = (Class<MessageLite>) Class.forName(inputType);
+                            Method parseFrom = input.getMethod("parseFrom", ByteString.class);
+                            Object o = parseFrom.invoke(null, request.getInput());
+                            result = method.invoke(matched.bean, o);
                         }
+                        byte[] bytes;
+                        if(result instanceof MessageLite) {
+                            MessageLite m = (MessageLite) result;
+                            bytes = m.toByteArray();
+                        } else {
+                            bytes = (byte[])result;
+                        }
+
                         matched.count.incrementAndGet();
-                        socket.send(result((byte[])result).toByteArray());
-                    } catch (InvocationTargetException | IllegalAccessException e) {
-                        String message = String.format("Failed invoking %s", method.getName());
-                        logger.error("{}", message, e);
+                        socket.send(result(bytes).toByteArray());
+                    } catch (Exception e) {
+                        String message = String.format("Failed invoking %s, %s: %s",
+                                                       method.getName(), e.getClass().getName(), e.getMessage());
+                        logger.error("Failed invoking {}", method.getName(), e);
                         socket.send(result(status(Result.INVOCATION_ERROR, message)).toByteArray());
-                    } catch (Throwable t) {
-                        t.printStackTrace();
                     } finally {
+                        lock.unlock();
                         beans.remove(matched);
                         beans.addLast(matched);
                     }

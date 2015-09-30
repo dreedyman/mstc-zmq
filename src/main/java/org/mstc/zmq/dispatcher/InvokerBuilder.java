@@ -19,6 +19,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import org.mstc.zmq.Discovery.ServiceTemplate;
 import org.mstc.zmq.Invoke.MethodRequest;
+import org.mstc.zmq.Invoke.MethodResult;
 
 /**
  * @author Dennis Reedy
@@ -40,14 +41,14 @@ public class InvokerBuilder {
     public static MethodRequest method(String method, MethodRequest input) {
         return MethodRequest.newBuilder()
                    .setMethod(method)
-                   .setType(input.getType())
-                   .setInput(input.getInput()).build();
+                .setType(input.getType())
+                .setInput(input.getInput()).build();
     }
 
     public static MethodRequest input(Class<?> type, Message message) {
         return MethodRequest.newBuilder()
-                   .setType(type.getName())
-                   .setInput(message.toByteString()).buildPartial();
+                .setType(type.getName())
+                .setInput(message.toByteString()).buildPartial();
     }
 
     public static Invoker service(String name, MethodRequest request) {
@@ -56,7 +57,7 @@ public class InvokerBuilder {
     }
 
     public static Invoker service(String name, Class<?> type, MethodRequest request) {
-        ServiceTemplate template =  ServiceTemplate.newBuilder().setName(name).setInterface(type.getName()).build();
+        ServiceTemplate template = ServiceTemplate.newBuilder().setName(name).setInterface(type.getName()).build();
         return getOne(request, template);
     }
 
@@ -66,16 +67,20 @@ public class InvokerBuilder {
     }
 
     public static Invoker service(Class<?> type, String group, MethodRequest request) {
-        ServiceTemplate template =  ServiceTemplate.newBuilder().setInterface(type.getName()).setGroupName(group).build();
+        ServiceTemplate template = ServiceTemplate.newBuilder().setInterface(type.getName()).setGroupName(group).build();
         return getOne(request, template);
     }
 
     public static Invoker service(String name, Class<?> type, String group, MethodRequest request) {
         ServiceTemplate template = ServiceTemplate.newBuilder()
-                                       .setName(name)
-                                       .setInterface(type.getName())
-                                       .setGroupName(group).build();
+                .setName(name)
+                .setInterface(type.getName())
+                .setGroupName(group).build();
         return getOne(request, template);
+    }
+
+    public static MethodResult output(Class<?> type) {
+        return MethodResult.newBuilder().setType(type.getName()).build();
     }
 
     public static void shutdown() {
@@ -86,4 +91,5 @@ public class InvokerBuilder {
         invoker.push(methodRequest, template);
         return invoker;
     }
+
 }

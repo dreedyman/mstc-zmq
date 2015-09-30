@@ -33,10 +33,9 @@ public class Producer {
     }
 
     @Remoteable
-    public byte[] go(byte[] input) {
-        String s = new String(input);
-        System.out.println("Received request: "+ s);
-        return Test.Output.newBuilder().setOutput(String.format("%s World", s)).build().toByteArray();
+    public Test.Output go(Test.Input input) {
+        System.out.println("Received request: "+ input.getInput());
+        return Test.Output.newBuilder().setOutput(String.format("%s World", input.getInput())).build();
     }
 
     @PreDestroy
