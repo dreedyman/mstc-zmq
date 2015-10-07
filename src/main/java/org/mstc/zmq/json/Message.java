@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.mstc.zmq.discovery;
+package org.mstc.zmq.json;
 
-import org.mstc.zmq.json.discovery.ServiceRegistration;
+import java.io.IOException;
 
 /**
  * @author Dennis Reedy
  */
-public interface ServiceRegistrationListener {
-    void notify(ServiceRegistration registration);
+public interface Message {
+    byte[] toByteArray() throws IOException;
 }

@@ -15,22 +15,25 @@
  */
 package org.mstc.zmq.discovery;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import org.mstc.zmq.Discovery.LookupResult;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceTemplate;
-import org.mstc.zmq.Invoke;
+import org.mstc.zmq.json.discovery.LookupResult;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
+import org.mstc.zmq.json.invoke.Result;
 import org.mstc.zmq.lookup.LookupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+
+//import org.mstc.zmq.proto.Discovery.ServiceRegistration;
+//import org.mstc.zmq.proto.Discovery.ServiceTemplate;
 
 /**
  * @author Dennis Reedy
@@ -105,17 +108,22 @@ public class DiscoveryClient {
             lookup = context.createSocket(ZMQ.REQ);
         }
         lookup.connect("tcp://" + lookupServiceAddress + ":" + DiscoveryConstants.SERVICE_LOOKUP);
-        lookup.send(serviceTemplate.toByteArray(), 0);
+        try {
+            lookup.send(serviceTemplate.toByteArray(), 0);
+        } catch (IOException e) {
+            logger.error("Error sending or serializing ServiceTemplate", e);
+            throw new LookupException("Error sending or serializing ServiceTemplate", e);
+        }
         byte[] response = lookup.recv(0);
         try {
             LookupResult result = LookupResult.parseFrom(response);
-            if(result.getStatus().getResult()!= Invoke.Result.OKAY) {
+            if(result.getStatus().getResult()!= Result.OKAY) {
                 throw new LookupException("Failed response from LookupService: "+result.getStatus().getResult());
             }
             List<ServiceRegistration> services = result.getServiceRegistrationList();
             serviceCache.addAll(services);
             return services;
-        } catch (InvalidProtocolBufferException e) {
+        } catch (IOException e) {
             logger.error("Error receiving LookupResponse", e);
             throw new LookupException("Error receiving LookupResponse", e);
         }
@@ -169,7 +177,7 @@ public class DiscoveryClient {
                         builder.append("name: ").append(serviceRegistration.getName());
                         logger.debug(builder.toString());
                     //}
-                } catch (InvalidProtocolBufferException e) {
+                } catch (IOException e) {
                     logger.warn("Failed getting ServiceRegistration notification", e);
                 }
             }

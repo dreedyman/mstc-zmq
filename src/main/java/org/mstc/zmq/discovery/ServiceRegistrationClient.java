@@ -15,11 +15,15 @@
  */
 package org.mstc.zmq.discovery;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceRegistrationResult;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceRegistrationResult;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
+
+import java.io.IOException;
+
+//import org.mstc.zmq.proto.Discovery.ServiceRegistration;
+//import org.mstc.zmq.proto.Discovery.ServiceRegistrationResult;
 
 /**
  * @author Dennis Reedy
@@ -38,7 +42,7 @@ public class ServiceRegistrationClient {
     }
 
     public ServiceRegistrationResult register(ServiceRegistration serviceRegistration,
-                                              String lookupServiceAddress) throws InvalidProtocolBufferException {
+                                              String lookupServiceAddress) throws IOException {
         socket.connect("tcp://"+lookupServiceAddress+":"+DiscoveryConstants.SERVICE_REGISTRATION);
         socket.send(serviceRegistration.toByteArray());
         byte[] response = socket.recv();

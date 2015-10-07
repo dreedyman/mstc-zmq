@@ -15,19 +15,20 @@
  */
 package org.mstc.zmq.lookup;
 
-import org.mstc.zmq.Discovery.LookupResult;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceRegistrationResult;
-import org.mstc.zmq.Discovery.ServiceTemplate;
-import org.mstc.zmq.Invoke.Result;
-import org.mstc.zmq.Invoke.Status;
 import org.mstc.zmq.discovery.DiscoveryConstants;
 import org.mstc.zmq.discovery.ServiceRegistrationMatcher;
+import org.mstc.zmq.json.discovery.LookupResult;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceRegistrationResult;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
+import org.mstc.zmq.json.invoke.Result;
+import org.mstc.zmq.json.invoke.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -109,15 +110,18 @@ public class LookupService {
                     registration = ServiceRegistration.parseFrom(recv);
                     UUID uuid = UUID.randomUUID();
                     registrations.put(uuid, registration);
-                    ServiceRegistrationResult result = ServiceRegistrationResult.getDefaultInstance();
                     Status status = status(Result.OKAY);
-                    socket.send(result.toBuilder().setUuid(uuid.toString()).setStatus(status).build().toByteArray(), 0);
+                    socket.send(ServiceRegistrationResult.newBuilder().setUuid(uuid.toString()).setStatus(status).build().toByteArray(), 0);
                     toPublish.offer(registration);
                 } catch (Exception e) {
                     String message = String.format("Failed de-serializing request: %s: %s",
                                                    e.getClass().getName(), e.getMessage());
                     logger.error("Failed de-serializing request", e);
-                    socket.send(result(status(Result.BAD_REQUEST, message)).toByteArray());
+                    try {
+                        socket.send(result(status(Result.BAD_REQUEST, message)).toByteArray());
+                    } catch (IOException e1) {
+                        logger.error("Failed de-serializing request", e1);
+                    }
                 }
             }
             //close();
@@ -141,6 +145,8 @@ public class LookupService {
                     publisher.send(serviceRegistration.toByteArray());
                 } catch (InterruptedException e) {
                     logger.trace("Interrupted taking ServiceRegistrations", e);
+                } catch (IOException e) {
+                    logger.error("Could not create byte array to send", e);
                 }
             }
         }
@@ -169,13 +175,17 @@ public class LookupService {
                                        .map(Map.Entry<UUID, ServiceRegistration>::getValue)
                                        .collect(Collectors.toList()));
                     Status status = status(Result.OKAY);
-                    LookupResult result = LookupResult.newBuilder().setStatus(status).addAllServiceRegistration(matched).build();
+                    LookupResult result = LookupResult.newBuilder().setStatus(status).addServiceRegistrations(matched).build();
                     socket.send(result.toByteArray(), 0);
                 } catch (Exception e) {
                     String message = String.format("Failed de-serializing request: %s: %s",
                                                    e.getClass().getName(), e.getMessage());
                     logger.error("Failed de-serializing request", e);
-                    socket.send(result(status(Result.BAD_REQUEST, message)).toByteArray());
+                    try {
+                        socket.send(result(status(Result.BAD_REQUEST, message)).toByteArray());
+                    } catch (IOException e1) {
+                        logger.error("Failed de-serializing request", e1);
+                    }
                 }
             }
             //close();

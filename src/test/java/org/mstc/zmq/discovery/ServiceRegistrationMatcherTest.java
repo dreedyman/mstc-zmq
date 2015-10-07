@@ -15,8 +15,11 @@
  */
 package org.mstc.zmq.discovery;
 
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceTemplate;
+/*import org.mstc.zmq.proto.Discovery.ServiceRegistration;
+import org.mstc.zmq.proto.Discovery.ServiceTemplate;*/
+
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -77,14 +80,14 @@ public class ServiceRegistrationMatcherTest {
                                                       .setName("Grand Poobah")
                                                       .setGroupName("test")
                                                       .setEndPoint("tcp://1.1.1.1:1234")
-                                                      .setInterface(ServiceRegistrationMatcher.class.getName())
+                                                      .setInterfaceName(ServiceRegistrationMatcher.class.getName())
                                                       .setDescription("foo").build();
 
         ServiceTemplate template = ServiceTemplate.newBuilder()
                                        .setName(serviceRegistration.getName())
                                        .setGroupName(serviceRegistration.getGroupName())
                                        .setDescription(serviceRegistration.getDescription())
-                                       .setInterface(serviceRegistration.getInterface()).build();
+                                       .setInterfaceName(serviceRegistration.getInterfaceName()).build();
         Assert.assertTrue(matcher.match(template, serviceRegistration));
     }
 
@@ -95,12 +98,12 @@ public class ServiceRegistrationMatcherTest {
                                                       .setName("Grand Poobah")
                                                       .setGroupName("test")
                                                       .setEndPoint("tcp://1.1.1.1:1234")
-                                                      .setInterface(ServiceRegistrationMatcher.class.getName())
+                                                      .setInterfaceName(ServiceRegistrationMatcher.class.getName())
                                                       .setDescription("foo").build();
 
         ServiceTemplate template = ServiceTemplate.newBuilder()
                                        .setGroupName(serviceRegistration.getGroupName())
-                                       .setInterface(serviceRegistration.getInterface()).build();
+                                       .setInterfaceName(serviceRegistration.getInterfaceName()).build();
         Assert.assertTrue(matcher.match(template, serviceRegistration));
     }
 
@@ -111,7 +114,7 @@ public class ServiceRegistrationMatcherTest {
                 .setName("Grand Poobah")
                 .setGroupName("test")
                 .setEndPoint("tcp://1.1.1.1:1234")
-                .setInterface(ServiceRegistrationMatcher.class.getName())
+                .setInterfaceName(ServiceRegistrationMatcher.class.getName())
                 .setArchitecture(System.getProperty("os.arch"))
                 .setLanguage("Java").build();
 
@@ -128,7 +131,7 @@ public class ServiceRegistrationMatcherTest {
                 .setName("Grand Poobah")
                 .setGroupName("test")
                 .setEndPoint("tcp://1.1.1.1:1234")
-                .setInterface(ServiceRegistrationMatcher.class.getName())
+                .setInterfaceName(ServiceRegistrationMatcher.class.getName())
                 .setArchitecture(System.getProperty("os.arch"))
                 .setLanguage("Java").build();
 

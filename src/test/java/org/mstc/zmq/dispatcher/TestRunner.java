@@ -40,10 +40,11 @@ public class TestRunner {
 
     @Test
     public void testInvokeStartProducerFirst() throws InterruptedException, IOException {
+        int numRequests = 1;
         Consumer consumer = new Consumer();
         Thread consumerThread = new Thread(() -> {
             try {
-                consumer.go();
+                consumer.go(numRequests);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -55,17 +56,18 @@ public class TestRunner {
         System.out.println("Start Consumer");
         consumerThread.start();
         consumerThread.join();
-        Assert.assertTrue(consumer.getReplies().size()==10);
+        Assert.assertTrue(consumer.getReplies().size()==numRequests);
         consumer.getReplies().forEach(System.out::println);
         dispatcher.shutdown();
     }
 
     @Test
     public void testInvokeStartConsumerFirst() throws InterruptedException, IOException {
+        int numRequests = 1;
         Consumer consumer = new Consumer();
         Thread consumerThread = new Thread(() -> {
             try {
-                consumer.go();
+                consumer.go(numRequests);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,7 +81,7 @@ public class TestRunner {
         //dispatcher.register(new Producer(), attributes);
         consumerThread.join();
 
-        Assert.assertTrue(consumer.getReplies().size()==10);
+        Assert.assertTrue(consumer.getReplies().size()==numRequests);
         consumer.getReplies().forEach(System.out::println);
     }
 

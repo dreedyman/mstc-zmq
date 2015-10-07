@@ -17,9 +17,10 @@ package org.mstc.zmq.dispatcher;
 
 import org.mstc.zmq.annotations.HandlerNotify;
 import org.mstc.zmq.annotations.Remoteable;
-import org.mstc.zmq.Test;
+import org.mstc.zmq.json.test.*;
 
 import javax.annotation.PreDestroy;
+import java.math.BigDecimal;
 
 /**
  * @author Dennis Reedy
@@ -33,9 +34,25 @@ public class Producer {
     }
 
     @Remoteable
-    public Test.Output go(Test.Input input) {
+    public Output go(Input input) {
         System.out.println("Received request: "+ input.getInput());
-        return Test.Output.newBuilder().setOutput(String.format("%s World", input.getInput())).build();
+        double[] doubles = input.getDoubles();
+        double[] squared = new double[doubles.length];
+        int[] ints = input.getInts();
+        int[] halved = new int[ints.length];
+
+        for(int i=0; i<squared.length; i++) {
+            squared[i] = Math.pow(doubles[i], 2);
+            System.out.println(new BigDecimal(doubles[i]).toPlainString()+" => "+new BigDecimal(squared[i]).toPlainString());
+        }
+
+        for(int i=0; i<ints.length; i++) {
+            halved[i] = ints[i]/2;
+            System.out.println(new BigDecimal(ints[i]).toPlainString()+" => "+new BigDecimal(halved[i]).toPlainString());
+        }
+        return Output.newBuilder().setOutput(String.format("%s World", input.getInput()))
+                   .setDoubles(squared)
+                   .setInts(halved).build();
     }
 
     @PreDestroy

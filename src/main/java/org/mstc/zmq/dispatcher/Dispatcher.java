@@ -15,17 +15,15 @@
  */
 package org.mstc.zmq.dispatcher;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageLite;
 import org.mstc.zmq.annotations.HandlerNotify;
 import org.mstc.zmq.annotations.Remoteable;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Invoke.MethodRequest;
-import org.mstc.zmq.Invoke.MethodResult;
-import org.mstc.zmq.Invoke.Result;
-import org.mstc.zmq.Invoke.Status;
 import org.mstc.zmq.discovery.ServiceRegistrationClient;
+import org.mstc.zmq.json.Encoder;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.invoke.MethodRequest;
+import org.mstc.zmq.json.invoke.MethodResult;
+import org.mstc.zmq.json.invoke.Result;
+import org.mstc.zmq.json.invoke.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
@@ -33,7 +31,8 @@ import org.zeromq.ZMQ;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -45,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -100,7 +98,7 @@ public class Dispatcher implements Handler {
         ServiceRegistration registration = ServiceRegistration.newBuilder()
                                                .setName(attributes.get("name"))
                                                .setGroupName(attributes.get("name"))
-                                               .setInterface(attributes.get("interface"))
+                                               .setInterfaceName(attributes.get("interface"))
                                                .setDescription(attributes.get("description"))
                                                .setEndPoint(endPoint)
                                                .setArchitecture(System.getProperty("os.arch"))
@@ -196,7 +194,7 @@ public class Dispatcher implements Handler {
                     String message = String.format("Failed de-serializing request: %s: %s",
                                                    e.getClass().getName(), e.getMessage());
                     logger.error("Failed de-serializing request", e);
-                    socket.send(result(status(Result.BAD_REQUEST, message)).toByteArray());
+                    sendError(result(status(Result.BAD_REQUEST, message)));
                     continue;
                 }
                 Bean matched = null;
@@ -217,30 +215,35 @@ public class Dispatcher implements Handler {
                     lock.tryLock();
                     Object result;
                     try {
-                        if (request.getInput() == null || request.getInput().size()==0) {
+                        if (request.getInput() == null || request.getInput().length()==0) {
                             result = method.invoke(matched.bean);
                         } else {
                             String inputType = request.getType();
-                            Class<MessageLite> input = (Class<MessageLite>) Class.forName(inputType);
-                            Method parseFrom = input.getMethod("parseFrom", ByteString.class);
+                            Class<?> input = Class.forName(inputType);
+                            Method parseFrom = input.getMethod("parseFrom", String.class);
+                            logger.info("Request input type {}.{}", input.getName());
                             Object o = parseFrom.invoke(null, request.getInput());
                             result = method.invoke(matched.bean, o);
                         }
-                        byte[] bytes;
-                        if(result instanceof MessageLite) {
-                            MessageLite m = (MessageLite) result;
-                            bytes = m.toByteArray();
-                        } else {
-                            bytes = (byte[])result;
-                        }
-
+                        /*byte[] bytes = null;
+                        if(result!=null) {
+                            Class<?> output = result.getClass();
+                            try {
+                                Method toByteArray = output.getMethod("toByteArray");
+                                bytes = (byte[]) toByteArray.invoke(result);
+                            } catch (NoSuchMethodException e) {
+                                logger.warn("Unable to get method toByteArray", e);
+                                bytes = (byte[]) result;
+                            }
+                        }*/
+                        String output = result==null?null:Encoder.encode(result);
                         matched.count.incrementAndGet();
-                        socket.send(result(bytes).toByteArray());
+                        socket.send(result(output).toByteArray());
                     } catch (Exception e) {
                         String message = String.format("Failed invoking %s, %s: %s",
                                                        method.getName(), e.getClass().getName(), e.getMessage());
                         logger.error("Failed invoking {}", method.getName(), e);
-                        socket.send(result(status(Result.INVOCATION_ERROR, message)).toByteArray());
+                        sendError(result(status(Result.INVOCATION_ERROR, message)));
                     } finally {
                         lock.unlock();
                         beans.remove(matched);
@@ -248,8 +251,24 @@ public class Dispatcher implements Handler {
                     }
                 } else {
                     String message = String.format("Unable to find matching method %s", request.getMethod());
-                    socket.send(result(status(Result.NO_METHOD, message)).toByteArray());
+                    sendError(result(status(Result.NO_METHOD, message)));
                 }
+            }
+        }
+
+        private String stringifyException(Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            return sw.toString();
+        }
+
+        private void sendError(MethodResult result) {
+            try {
+                byte[] error = result.toByteArray();
+                socket.send(error);
+            } catch (IOException e) {
+                logger.error("Failed sending error, could not serialize MethodResult", e);
             }
         }
 
@@ -259,20 +278,21 @@ public class Dispatcher implements Handler {
             return Status.newBuilder().setResult(result).setStatus(status).build();
         }
 
-        private MethodResult result(byte[] data) {
-            return result(status(Result.OKAY, null), data);
+
+        private MethodResult result(String output) {
+            return result(status(Result.OKAY, null), output);
         }
 
         private MethodResult result(Status status) {
             return result(status, null);
         }
 
-        private MethodResult result(Status status, byte[] data) {
-            if(data==null)
+        private MethodResult result(Status status, String output) {
+            if(output==null)
                 return MethodResult.newBuilder().setStatus(status).build();
             return MethodResult.newBuilder()
                        .setStatus(status)
-                       .setResult(ByteString.copyFrom(data)).build();
+                       .setResult(output).build();
         }
 
         private boolean match(Method m, MethodRequest r) {

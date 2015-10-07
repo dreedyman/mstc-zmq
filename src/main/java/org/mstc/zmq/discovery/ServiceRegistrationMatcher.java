@@ -15,9 +15,8 @@
  */
 package org.mstc.zmq.discovery;
 
-import com.google.protobuf.Descriptors;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceTemplate;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,18 +35,17 @@ public class ServiceRegistrationMatcher {
             return true;
         }
         boolean matched = true;
-        for(Map.Entry<Descriptors.FieldDescriptor, Object> entry :template.getAllFields().entrySet()) {
-            String fieldName = entry.getKey().getName();
+        /*for(Map.Entry<Descriptors.FieldDescriptor, Object> entry :template.getAllFields().entrySet()) {
+            String fieldName = entry.getKey().getName();*/
+        for(Map.Entry<String, String> entry : template.getAllFields().entrySet()) {
+            String fieldName = entry.getKey();
             String prefix = fieldName.substring(0,1).toUpperCase();
             String suffix = fieldName.substring(1, fieldName.length());
             String getter = String.format("get%s%s", prefix, suffix);
-            String has = String.format("has%s%s", prefix, suffix);
             try {
-                Method hasMethod = serviceRegistration.getClass().getMethod(has);
-                Boolean hasValue = (Boolean) hasMethod.invoke(serviceRegistration);
-                if(hasValue) {
-                    Method getterMethod = serviceRegistration.getClass().getMethod(getter);
-                    Object value = getterMethod.invoke(serviceRegistration);
+                Method getterMethod = serviceRegistration.getClass().getMethod(getter);
+                Object value = getterMethod.invoke(serviceRegistration);
+                if(value!=null) {
                     if(!value.equals(entry.getValue())) {
                         matched = false;
                         break;

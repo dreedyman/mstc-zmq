@@ -15,9 +15,11 @@
  */
 package org.mstc.zmq.dispatcher;
 
-import org.mstc.zmq.Invoke.MethodRequest;
-import org.mstc.zmq.Invoke.MethodResult;
-import org.mstc.zmq.Test;
+import org.mstc.zmq.json.Encoder;
+import org.mstc.zmq.json.invoke.MethodRequest;
+import org.mstc.zmq.json.invoke.MethodResult;
+import org.mstc.zmq.json.test.Input;
+import org.mstc.zmq.json.test.Output;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
@@ -38,14 +40,14 @@ public class ConsumerUsingZMQApi {
         requester.connect("tcp://localhost:5559");
 
         for (int requestNum = 0; requestNum < 10; requestNum++) {
-            Test.Input input = Test.Input.newBuilder().setInput("Hello").build();
+            Input input = Input.newBuilder().setInput("Hello").build();
             MethodRequest methodRequest = MethodRequest.newBuilder()
                                               .setMethod("go")
-                                              .setInput(input.toByteString()).build();
+                                              .setInput(Encoder.encode(input)).build();
             requester.send(methodRequest.toByteArray());
             byte[] response = requester.recv();
             MethodResult result = MethodResult.parseFrom(response);
-            Test.Output output = Test.Output.parseFrom(result.getResult());
+            Output output = Output.parseFrom(result.getResult());
             replies.add(String.format("[%s] Received reply %s", requestNum, output.getOutput()));
         }
 

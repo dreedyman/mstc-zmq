@@ -15,21 +15,21 @@
  */
 package org.mstc.zmq.dispatcher;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceTemplate;
-import org.mstc.zmq.Invoke;
-import org.mstc.zmq.Invoke.MethodRequest;
-import org.mstc.zmq.Invoke.MethodResult;
-import org.mstc.zmq.Invoke.Status;
 import org.mstc.zmq.discovery.DiscoveryClient;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
+import org.mstc.zmq.json.invoke.MethodRequest;
+import org.mstc.zmq.json.invoke.MethodResult;
+import org.mstc.zmq.json.invoke.Result;
+import org.mstc.zmq.json.invoke.Status;
 import org.mstc.zmq.lookup.LookupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Stack;
 
@@ -102,17 +102,21 @@ public class Invoker {
 
         client = context.createSocket(ZMQ.REQ);
         client.connect(services.get(0).getEndPoint());
-        client.send(request.methodRequest.toByteArray());
+        try {
+            client.send(request.methodRequest.toByteArray());
+        } catch (IOException e) {
+            throw new InvokerException("Could not serialize MethodRequest", e);
+        }
         byte[] result = client.recv();
         MethodResult methodResult;
         try {
             methodResult = MethodResult.parseFrom(result);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (IOException e) {
             logger.warn("Could not create MethodResult", e);
             throw new InvokerException("Could not create MethodResult", e);
         }
         Status status = methodResult.getStatus();
-        if(!status.getResult().equals(Invoke.Result.OKAY)) {
+        if(!status.getResult().equals(Result.OKAY)) {
             String message = String.format("[%s] %s", status.getResult(), status.getStatus());
             logger.error(message);
             throw new InvokerException(message);

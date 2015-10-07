@@ -15,11 +15,12 @@
  */
 package org.mstc.zmq.dispatcher;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Message;
-import org.mstc.zmq.Discovery.ServiceTemplate;
-import org.mstc.zmq.Invoke.MethodRequest;
-import org.mstc.zmq.Invoke.MethodResult;
+import org.mstc.zmq.json.Encoder;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
+import org.mstc.zmq.json.invoke.MethodRequest;
+import org.mstc.zmq.json.invoke.MethodResult;
+
+import java.io.IOException;
 
 /**
  * @author Dennis Reedy
@@ -27,12 +28,12 @@ import org.mstc.zmq.Invoke.MethodResult;
 public class InvokerBuilder {
     private static Invoker invoker = new Invoker();
 
-    public static MethodRequest method(String method, Class<?> type, byte[] input) {
+/*    public static MethodRequest method(String method, Class<?> type, byte[] input) {
         return MethodRequest.newBuilder()
             .setMethod(method)
             .setType(type.getName())
-            .setInput(ByteString.copyFrom(input)).build();
-    }
+            .setInput(input).build();
+    }*/
 
     public static MethodRequest method(String method) {
         return MethodRequest.newBuilder().setMethod(method).build();
@@ -41,14 +42,14 @@ public class InvokerBuilder {
     public static MethodRequest method(String method, MethodRequest input) {
         return MethodRequest.newBuilder()
                    .setMethod(method)
-                .setType(input.getType())
-                .setInput(input.getInput()).build();
+                   .setType(input.getType())
+                   .setInput(input.getInput()).build();
     }
 
-    public static MethodRequest input(Class<?> type, Message message) {
+    public static MethodRequest input(Class<?> type, Object message) throws IOException {
         return MethodRequest.newBuilder()
                 .setType(type.getName())
-                .setInput(message.toByteString()).buildPartial();
+                .setInput(Encoder.encode(message)).build();
     }
 
     public static Invoker service(String name, MethodRequest request) {
@@ -57,24 +58,24 @@ public class InvokerBuilder {
     }
 
     public static Invoker service(String name, Class<?> type, MethodRequest request) {
-        ServiceTemplate template = ServiceTemplate.newBuilder().setName(name).setInterface(type.getName()).build();
+        ServiceTemplate template = ServiceTemplate.newBuilder().setName(name).setInterfaceName(type.getName()).build();
         return getOne(request, template);
     }
 
     public static Invoker service(Class<?> type, MethodRequest request) {
-        ServiceTemplate template =  ServiceTemplate.newBuilder().setInterface(type.getName()).build();
+        ServiceTemplate template =  ServiceTemplate.newBuilder().setInterfaceName(type.getName()).build();
         return getOne(request, template);
     }
 
     public static Invoker service(Class<?> type, String group, MethodRequest request) {
-        ServiceTemplate template = ServiceTemplate.newBuilder().setInterface(type.getName()).setGroupName(group).build();
+        ServiceTemplate template = ServiceTemplate.newBuilder().setInterfaceName(type.getName()).setGroupName(group).build();
         return getOne(request, template);
     }
 
     public static Invoker service(String name, Class<?> type, String group, MethodRequest request) {
         ServiceTemplate template = ServiceTemplate.newBuilder()
                 .setName(name)
-                .setInterface(type.getName())
+                .setInterfaceName(type.getName())
                 .setGroupName(group).build();
         return getOne(request, template);
     }

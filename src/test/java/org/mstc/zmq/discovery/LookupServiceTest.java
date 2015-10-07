@@ -15,19 +15,22 @@
  */
 package org.mstc.zmq.discovery;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import org.mstc.zmq.Discovery.ServiceRegistration;
-import org.mstc.zmq.Discovery.ServiceRegistrationResult;
-import org.mstc.zmq.Discovery.ServiceTemplate;
-import org.mstc.zmq.lookup.LookupException;
-import org.mstc.zmq.lookup.LookupService;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mstc.zmq.json.discovery.ServiceRegistration;
+import org.mstc.zmq.json.discovery.ServiceRegistrationResult;
+import org.mstc.zmq.json.discovery.ServiceTemplate;
+import org.mstc.zmq.lookup.LookupException;
+import org.mstc.zmq.lookup.LookupService;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+
+//import org.mstc.zmq.proto.Discovery.ServiceRegistration;
+//import org.mstc.zmq.proto.Discovery.ServiceRegistrationResult;
+//import org.mstc.zmq.proto.Discovery.ServiceTemplate;
 
 public class LookupServiceTest {
     String address;
@@ -41,21 +44,20 @@ public class LookupServiceTest {
         discoveryClient = new DiscoveryClient();
     }
 
-    @After
+    //@After
     public void cleanup() {
         lookupService.terminate();
         discoveryClient.terminate();
     }
 
     @Test
-    public void testDiscovery() throws UnknownHostException, InvalidProtocolBufferException, InterruptedException, LookupException {
+    public void testDiscovery() throws IOException, InterruptedException, LookupException {
         ServiceRegistration serviceRegistration = ServiceRegistration.newBuilder()
                                                       .setName("Grand Poobah")
                                                       .setGroupName("test")
                                                       .setEndPoint("tcp://" + address + ":1234")
                                                       .addMethodName("foo")
                                                       .addMethodName("bar").build();
-
         ServiceRegistrationClient registrationClient = new ServiceRegistrationClient();
         ServiceRegistrationResult result = registrationClient.register(serviceRegistration, address);
         System.out.println("Status: ["+result.getStatus().getResult()+"]");
