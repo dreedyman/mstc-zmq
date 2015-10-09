@@ -1,0 +1,10 @@
+task prepareInstall(type: Exec) {
+  executable "bash"
+  args "-c", "cd ${buildDir.path}; make -f ${projectDir.path}/Makefile"
+}
+
+prepareInstall.doFirst() {
+  if (!buildDir.exists()) buildDir.mkdirs()
+}
+
+task install(dependsOn: prepareInstall)
