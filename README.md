@@ -1,2 +1,2 @@
 # mstc-zmq
-Framework using ZeroMQ and Google Protocol Buffers for heterogeneous platform support
+Framework using ZeroMQ and JSON for heterogeneous platform support
