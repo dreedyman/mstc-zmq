@@ -1,10 +1,93 @@
-task prepareInstall(type: Exec) {
-  executable "bash"
-  args "-c", "cd ${buildDir.path}; make -f ${projectDir.path}/Makefile"
+class BuildFortran extends DefaultTask {
+
+  @InputFiles
+  FileCollection sources
+
+  @Optional
+  String shell = '/bin/bash'
+
+  @Optional
+  String compiler = 'gfortran'
+
+  @Optional
+  String compilerFlags = '-O2'
+
+  @Optional
+  FileCollection includePaths = null
+
+  @Optional
+  String linker = 'gfortran'
+
+  @Optional
+  String linkerFlags = ''
+
+  @Optional
+  FileCollection linkPaths = null
+
+  @Optional
+  String libraries = ''
+
+  @Optional
+  String target = name
+
+  def createBuildDir() {
+    if (!project.buildDir.exists()) {
+      project.buildDir.mkdirs()
+    }
+  }
+
+  def compileCommand(File src) {
+    String cmd = "${compiler} ${compilerFlags}"
+    if (includePaths != null && !includePaths.isEmpty()) {
+      cmd += " -I ${includePaths.getFiles().iterator().join(' -I ')}"
+    }
+    cmd += " -c -o ${src.name}.o ${src.path}"
+    return cmd
+  }
+
+  def compile(File src) {
+    project.exec {
+      executable shell
+      args "-c", "cd ${project.buildDir.path} ; ${compileCommand(src)}"
+    }
+    return new File(project.buildDir, "${src.name}.o")
+  }
+
+  def linkCommand(List<File> objects) {
+    String cmd = "${linker} ${linkerFlags}"
+    if (linkPaths != null && !linkPaths.isEmpty()) {
+      cmd += " -L ${linkPaths.getFiles().iterator().join(' -L ')}"
+    }
+    cmd += " -o ${target} ${objects.iterator().join(' ')} ${libraries}"
+    return cmd
+  }
+
+  def link(List<File> objects) {
+    project.exec {
+      executable shell
+      args "-c", "cd ${project.buildDir.path} ; ${linkCommand(objects)}"
+    }
+    return new File(project.buildDir.path, target)
+  }
+
+  @TaskAction
+  def run() {
+    createBuildDir()
+    def objects = []
+    sources.each {File file ->
+      objects << compile(file)
+    }
+    link(objects)
+  }
+
 }
 
-prepareInstall.doFirst() {
-  if (!buildDir.exists()) buildDir.mkdirs()
+task srv(type: BuildFortran) {
+  File json = new File("${System.getProperty('user.home')}/Documents/Temp/json-fortran/jsonfortran-gnu-4.2.0/lib")
+  sources = files("zmq.f90", "srv.f90")
+  includePaths = files(json)
+  linkPaths = files(json)
+  libraries = "-ljsonfortran -lzmq"
 }
 
-task install(dependsOn: prepareInstall)
+task install(dependsOn: srv)
