@@ -13,29 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.mstc.zmq.proto;
 
-message MethodRequest {
-    required string method = 1;
-    optional string type = 2;
-    optional bytes input = 3;
+apply from: file("${rootProject.projectDir.path}/gradle/buildfortran.gradle")
+
+buildFortran {
+    File json = new File(jsonFortran)
+    target = "srv"
+    sources = files("zmq.f90", "srv.f90")
+    includePaths = files(json)
+    linkPaths = files(json)
+    libraries = "-ljsonfortran -lzmq"
 }
 
-enum Result {
-    OKAY = 0;
-    NO_SERVICE = 1;
-    NO_METHOD = 2;
-    BAD_REQUEST = 3;
-    INVOCATION_ERROR = 4;
-}
+task install(dependsOn: buildFortran)
 
-message Status {
-    required Result result = 1 [default = OKAY];
-    optional string status = 2;
-}
-
-message MethodResult {
-    required Status status = 1;
-    optional string type = 2;
-    optional bytes result = 3;
+task clean(type: Delete) {
+    delete 'build'
 }

@@ -22,9 +22,6 @@ import org.zeromq.ZMQ;
 
 import java.io.IOException;
 
-//import org.mstc.zmq.proto.Discovery.ServiceRegistration;
-//import org.mstc.zmq.proto.Discovery.ServiceRegistrationResult;
-
 /**
  * @author Dennis Reedy
  */

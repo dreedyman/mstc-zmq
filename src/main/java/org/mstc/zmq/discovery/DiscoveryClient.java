@@ -32,9 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-//import org.mstc.zmq.proto.Discovery.ServiceRegistration;
-//import org.mstc.zmq.proto.Discovery.ServiceTemplate;
-
 /**
  * @author Dennis Reedy
  */

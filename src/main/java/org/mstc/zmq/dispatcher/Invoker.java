@@ -15,7 +15,6 @@
  */
 package org.mstc.zmq.dispatcher;
 
-import com.google.protobuf.Message;
 import org.mstc.zmq.discovery.DiscoveryClient;
 import org.mstc.zmq.json.discovery.ServiceRegistration;
 import org.mstc.zmq.json.discovery.ServiceTemplate;
@@ -47,7 +46,7 @@ public class Invoker {
         context = new ZContext(1);
     }
 
-    class InvokeRequest<T extends Message> {
+    class InvokeRequest<T> {
         ServiceTemplate template;
         MethodRequest methodRequest;
         T outputType;
@@ -66,12 +65,6 @@ public class Invoker {
 
     public void push(MethodRequest methodRequest, ServiceTemplate template) {
         stack.push(new InvokeRequest(methodRequest, template));
-    }
-
-    public <T> T invoke(T type) throws InvokerException {
-        MethodResult methodResult = invoke();
-        methodResult.getResult();
-        return null;
     }
 
     public MethodResult invoke() throws InvokerException {

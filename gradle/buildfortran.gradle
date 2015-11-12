@@ -1,0 +1,112 @@
+/*
+ * Copyright to the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+task buildFortran(type: BuildFortran) {
+    description = "Build sfortran code."
+}
+
+task buildTestFortran(type: BuildFortran) {
+    description = "Build sfortran code."
+}
+
+class BuildFortran extends DefaultTask {
+
+    @InputFiles
+    FileCollection sources
+
+    @Optional
+    String shell = '/bin/bash'
+
+    @Optional
+    String compiler = 'gfortran'
+
+    @Optional
+    String compilerFlags = '-O2'
+
+    @Optional
+    FileCollection includePaths = null
+
+    @Optional
+    String linker = 'gfortran'
+
+    @Optional
+    String linkerFlags = ''
+
+    @Optional
+    FileCollection linkPaths = null
+
+    @Optional
+    String libraries = ''
+
+    @Optional
+    String target = name
+
+    def createBuildDir() {
+        if (!project.buildDir.exists()) {
+            project.buildDir.mkdirs()
+        }
+    }
+
+    def compileCommand(File src) {
+        String cmd = "${compiler} ${compilerFlags}"
+        if (includePaths != null && !includePaths.isEmpty()) {
+            cmd += " -I ${includePaths.getFiles().iterator().join(' -I ')}"
+        }
+        cmd += " -c -o ${src.name}.o ${src.path}"
+        return cmd
+    }
+
+    def compile(File src) {
+        File libs = new File("${project.buildDir.path}/libs")
+        if(!libs.exists())
+            libs.mkdirs();
+        project.exec {
+            executable shell
+            args "-c", "cd ${project.buildDir.path}/libs ; ${compileCommand(src)}"
+        }
+        return new File(project.buildDir, "libs/${src.name}.o")
+    }
+
+    def linkCommand(List<File> objects) {
+        String cmd = "${linker} ${linkerFlags}"
+        if (linkPaths != null && !linkPaths.isEmpty()) {
+            cmd += " -L ${linkPaths.getFiles().iterator().join(' -L ')}"
+        }
+        cmd += " -o ${target} ${objects.iterator().join(' ')} ${libraries}"
+        return cmd
+    }
+
+    def link(List<File> objects) {
+        File libs = new File("${project.buildDir.path}/libs")
+        if(!libs.exists())
+            libs.mkdirs();
+        project.exec {
+            executable shell
+            args "-c", "cd ${project.buildDir.path}/libs ; ${linkCommand(objects)}"
+        }
+        return new File("${project.buildDir.path}/libs", target)
+    }
+
+    @TaskAction
+    def run() {
+        createBuildDir()
+        def objects = []
+        sources.each { File file ->
+            objects << compile(file)
+        }
+        link(objects)
+    }
+}
