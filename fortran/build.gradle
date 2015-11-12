@@ -43,8 +43,8 @@ task stopme() {
         ps.waitFor()
         ps.text.eachLine {
             if(it.endsWith("srv")) {
-                String[] parts = it.split(" ")
-                "kill -9 ${parts[1]}".execute()
+                String[] parts = it.trim().split(" ")
+                "kill -9 ${parts[0]}".execute()
             }
         }
     }
