@@ -40,7 +40,7 @@ dependencies {
 test {
     dependsOn(":fortran:startme")
     testLogging {
-        events "passed", "skipped", "failed", "standardOut", "standardError"
+        events "passed", "skipped", "failed"/*, "standardOut", "standardError"*/
     }
     systemProperty "mstc.zmq.lookup", "127.0.0.1"
     finalizedBy(":fortran:stopme")
