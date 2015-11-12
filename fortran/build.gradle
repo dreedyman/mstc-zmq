@@ -30,3 +30,22 @@ task install(dependsOn: buildFortran)
 task clean(type: Delete) {
     delete 'build'
 }
+
+task startme(dependsOn: install) {
+    doLast {
+        "${project.buildDir}/libs/srv".execute()
+    }
+}
+
+task stopme() {
+    doLast {
+        Process ps = "sh -c ps -ef".execute()
+        ps.waitFor()
+        ps.text.eachLine {
+            if(it.endsWith("srv")) {
+                String[] parts = it.split(" ")
+                "kill -9 ${parts[1]}".execute()
+            }
+        }
+    }
+}
